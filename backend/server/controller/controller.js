@@ -9,7 +9,7 @@ exports.register = async (req, res) => {
     try {
         const { username, email, password, status } = req.body;
         if (!req.body || !username || !email || !password || !status) {
-            return res.status(400).json({ return: "Failed", message: "field is missing" });
+            return res.status(400).json({ status: "Failed", message: "field is missing" });
         }
         Userdb.findOne({ username: username }, async (err, result) => {
             if (result) {
