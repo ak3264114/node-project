@@ -1,6 +1,10 @@
 var Userdb = require('../model/user');
 const bcrypt = require('bcrypt');
 var jwt = require('jsonwebtoken');
+const nodemailer = require("nodemailer");
+const dotenv = require("dotenv");
+dotenv.config({ path: 'config.env' })
+
 
 // create and save new user
 
@@ -77,20 +81,38 @@ exports.login = async (req, res) => {
 
 
 exports.forgotPasswordmail = async (req, res) => {
-    const {email} =req.body;
-    if(email){
-        const user = await Userdb.findOne({email : email})
-        if(user){
+    const { email } = req.body;
+    if (email) {
+        const user = await Userdb.findOne({ email: email })
+        if (user) {
             const secret = user._id + process.env.JWT_SECRET_KEY
-            const token  = jwt.sign({userID : user._id}, secret , {expiresIn : '10m'})
-            res.status(200).json({"status":"succes", "message":"click on the link to verify and reser your password","link": `http://127.0.0.1:3005/api/verifypassword/${user._id}/${token}`})
+            const token = jwt.sign({ userID: user._id }, secret, { expiresIn: '10m' })
+            const link = `http://127.0.0.1:3005/api/verifypassword/${user._id}/${token}`
+            console.log(link)
+
+            let transporter = nodemailer.createTransport({
+                host: process.env.EMAIL_HOST,
+                port: process.env.EMAIL_PORT,
+                secure: true,
+                auth: {
+                    user: process.env.EMAIL_USER,
+                    pass: process.env.EMAIL_PASS,
+                },
+            })
+            let info = await transporter.sendMail({
+                from: process.env.EMAIL_FROM,
+                to: user.email,
+                subject: "Reset your Password",
+                html: `<a href = ${link}>click here <a/>to reset your password `
+            })
+            res.status(200).json({ "status": "succes", "message": "Email sent to your mail id", "info": info })
         }
-        else{
-        res.status(400).json({"message" : "User does not exist with this email"})
+        else {
+            res.status(400).json({ "message": "User does not exist with this email" })
         }
     }
-    else{
-        res.status(400).json({"message":"email Cannot be empty"})
+    else {
+        res.status(400).json({ "message": "email Cannot be empty" })
     }
 };
 
@@ -119,3 +141,27 @@ exports.passwordreset = async (req ,res)=>{
         res.status(500).json({"message": error.message ||"error Occoured in verifing user"})
     }
 }
+
+
+exports.changepassword = async (req, res) => {
+    const { password, confirm_password } = req.body;
+    if (password && confirm_password) {
+        if (password !== confirm_password) {
+            res.status(400).json({ "message": "new password and confirm password doesnot match" })
+        }
+        else {
+            const salt = await bcrypt.genSalt(12)
+            const hashpass = await bcrypt.hash(password, salt)
+            res.status(200).json({ "message": "password changed successfully" })
+            await Userdb.findByIdAndUpdate(req.user._id, { $set: { password: hashpass } })
+        }
+    }
+    else {
+        res.status(400).json({ "message": "Password and Confirm Password Cannot be empty" })
+    }
+}
+
+exports.loggeduser = (req, res) => {
+    res.status(200).json(req.user.username)
+}
+

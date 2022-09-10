@@ -17,4 +17,5 @@ connectDB();
 
 // load routes 
 app.use('/api', require('./server/routes/router'))
+app.use('/api/post', require('./server/routes/postRouters'))
 app.listen(PORT, ()=> {console.log(`listing on port  localhost:${PORT}`)})
